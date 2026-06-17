@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>未來矩陣 - 現代科技總部</title>
+    <script type="text/javascript" src="https://me.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=GO6bBPv01aHlu_-qN1mYvkXvL1sfnYwvi6sZiIGAUKoN795bbsDIDpmnI1wQtMvuBk4f2cAcr9FJAGs1B85yw90cglA4fyrkbDqvJvaQVo-al_31dw2s2KkPO8BMbRkDYiwGsZiiopekeqHg5Drl7Enkh3Nsktu6wB2z0eKRU5h3dzFguotSWThPYNJWHBp5bYUimXIzQm0hn1zzrnUlFVNZ8e7QedSY9JbC-j9STXFctTHiLB9wSP8BAON7jwQ-a-Y8VpyMVi-_VfPAAN-TAJ8VTdJhcZibTcJ_3MDbUPYS_qSPjxBaw9QBP8bfJO5W" charset="UTF-8"></script><style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #0a0f1d;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* WebGL Canvas 固定在底層 */
+        #webgl-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none; /* 允許鼠標穿透到下層滾動，如果需要互動可單獨處理 */
+        }
+
+        /* 滾動內容層 */
+        .scroll-container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+        }
+
+        .section {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 0 10%;
+            position: relative;
+        }
+
+        /* 交替靠左和靠右佈局 */
+        .section.left { justify-content: flex-start; }
+        .section.right { justify-content: flex-end; }
+
+        .content-card {
+            background: rgba(10, 15, 29, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 168, 255, 0.2);
+            padding: 40px;
+            border-radius: 16px;
+            max-width: 480px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .section-tag {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #00a8ff;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: 800;
+            line-height: 1.2;
+            background: linear-gradient(45deg, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+
+        .image-placeholder {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 0.9rem;
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+
+        /* 頂部導航 */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 30px 10%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: #fff;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0a0f1d;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 168, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #00a8ff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #64748b;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 加載動畫 -->
+    <div class="loading-screen" id="loader">
+        <div class="loader"></div>
+        <div class="loading-text">正在載入 3D 科技總部模型...</div>
+    </div>
+
+    <!-- 頂部導航 -->
+    <header>
+        <div class="logo">NEXUS HQ</div>
+    </header>
+
+    <!-- 3D 渲染容器 -->
+    <div id="webgl-container"></div>
+
+    <!-- 滾動內容 -->
+    <div class="scroll-container">
+        
+        <!-- Section 1: 全景概述 -->
+        <section class="section left" id="sec1">
+            <div class="content-card">
+                <div class="section-tag">01 / 全局視野</div>
+                <h2>未來矩陣<br>科技總部</h2>
+                <p>歡迎來到 NEXUS 科技總部。這座劃時代的智能大樓坐落於核心科技園區，採用模組化永續設計，完美融合了高效能運算中心與未來主義的幾何美學。</p>
+                <div class="image-placeholder">[ 圖示：科技總部全景鳥瞰 ]</div>
+            </div>
+        </section>
+
+        <!-- Section 2: 頂部雲端 -->
+        <section class="section right" id="sec2">
+            <div class="content-card">
+                <div class="section-tag">02 / 雲端生態</div>
+                <h2>天際線穹頂</h2>
+                <p>大樓頂部配備了穹頂式智能溫室與高空交流中心。利用雙層全景防輻射玻璃，在提供 360 度城市視野的同時，實現高效率的自然採光與微氣候調節。</p>
+                <div class="image-placeholder">[ 圖示：頂部穹頂與高空露台 ]</div>
+            </div>
+        </section>
+
+        <!-- Section 3: 核心架構 -->
+        <section class="section left" id="sec3">
+            <div class="content-card">
+                <div class="section-tag">03 / 能源核心</div>
+                <h2>數據與永續幾何</h2>
+                <p>建築中段內嵌垂直風力發電系統與動能回收外牆。幾何切面經過流體力學最佳化，有效降低高空風阻，並將風能轉化為整座大廈的備用乾淨能源。</p>
+                <div class="image-placeholder">[ 圖示：動能外牆與微風發電節點 ]</div>
+            </section>
+
+        <!-- Section 4: 底座入口 -->
+        <section class="section right" id="sec4">
+            <div class="content-card">
+                <div class="section-tag">04 / 智能交互</div>
+                <h2>量子中樞入口</h2>
+                <p>大樓基座為全開放式智能交互大廳。設有AR導航矩陣與無感無縫安檢系統，將數位孿生技術與物理空間完美結合，打造極致高效的日常通勤體驗。</p>
+                <div class="image-placeholder">[ 圖示：開放式智能交互大廳入口 ]</div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 引入 Three.js & GSAP 庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <script>
+        // 註冊 GSAP 插件
+        gsap.registerPlugin(ScrollTrigger);
+
+        // --- 1. 初始化 Three.js 基礎場景 ---
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#0a0f1d');
+        scene.fog = new THREE.FogExp2('#0a0f1d', 0.15);
+
+        // 相機設置
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        // 初始相機位置 (Section 1 的全景視角)
+        camera.position.set(0, 1.5, 3); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        // --- 2. 燈光配置 (營造科技感 slate-blue 氛圍) ---
+        const ambientLight = new THREE.AmbientLight('#1e293b', 1.5);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight('#00a8ff', 2.5);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        const pointLight = new THREE.PointLight('#6366f1', 3, 10);
+        pointLight.position.set(-2, 3, -2);
+        scene.add(pointLight);
+
+        // --- 3. 載入模型與虛擬觀測目標 ---
+        // 創建一個虛擬的 lookAt 目標點，GSAP 將對這個點的坐標進行動畫處理
+        const cameraTarget = new THREE.Vector3(0, 0.2, 0);
+        let model;
+
+        const loader = new THREE.GLTFLoader();
+        
+        // 這裡填入你的模型路徑，當前設為本地相對路徑
+        loader.load('tower.glb', (gltf) => {
+            model = gltf.scene;
+            
+            // 根據你的模型 bounding box 調整：
+            // 由於模型 max y 約 0.97, min y 約 -0.57，我們將模型中心做一個適當置中
+            model.position.set(0, -0.2, 0); 
+            
+            // 遍歷模型材質，增加科技質感
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    // 如果模型自帶材質不夠科幻，可以在此進行微調，例如增加金屬感
+                    if(child.material) {
+                        child.material.roughness = 0.3;
+                        child.material.metalness = 0.8;
+                    }
+                }
+            });
+
+            scene.add(model);
+
+            // 隱藏加載動畫
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+
+            // 模型加載完成後，初始化滾動動畫
+            initScrollAnimations();
+        }, 
+        (xhr) => {
+            // 可以進一步計算加載百分比
+        }, 
+        (error) => {
+            console.error('模型載入失敗:', error);
+            // 降級處理：加載失敗時也隱藏載入畫面並初始化動畫
+            document.getElementById('loader').style.display = 'none';
+            initScrollAnimations();
+        });
+
+        // --- 4. 核心：滾動觸發相機軌跡與 DOM 卡片動畫 ---
+        function initScrollAnimations() {
+            
+            // 建立主時間軸，與整個滾動容器綁定
+            const mainTl = gsap.timeline({
+                scrollTrigger: {
+                    trigger: ".scroll-container",
+                    start: "top top",
+                    end: "bottom bottom",
+                    scrub: 1.2, // 數值越大，相機跟隨滾動時的緩衝效果越平滑
+                }
+            });
+
+            // 設定大樓各個角落/視角的關鍵幀數據 (依據模型大小為 1 單位左右微調)
+            // Section 1 -> Section 2 (移到頂部局部)
+            mainTl.to(camera.position, { x: 0.8, y: 0.9, z: 1.2, ease: "power2.inOut" }, 0)
+                  .to(cameraTarget, { x: 0, y: 0.7, z: 0, ease: "power2.inOut" }, 0);
+
+            // Section 2 -> Section 3 (切換到中段核心，側面環繞)
+            mainTl.to(camera.position, { x: -1.2, y: 0.2, z: 1.0, ease: "power2.inOut" })
+                  .to(cameraTarget, { x: 0, y: 0.1, z: 0, ease: "power2.inOut" });
+
+            // Section 3 -> Section 4 (俯瞰底座入口)
+            mainTl.to(camera.position, { x: 0.5, y: -0.2, z: 1.5, ease: "power2.inOut" })
+                  .to(cameraTarget, { x: 0, y: -0.4, z: 0, ease: "power2.inOut" });
+
+            // 為每個 DOM 內容卡片單獨製作淡入淡出 ScrollTrigger 效果
+            const cards = document.querySelectorAll('.content-card');
+            cards.forEach((card, index) => {
+                gsap.to(card, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 1,
+                    scrollTrigger: {
+                        trigger: card,
+                        start: "top 80%",
+                        end: "top 30%",
+                        toggleActions: "play reverse play reverse" // 滾動回來時會再次觸發動畫
+                    }
+                });
+            });
+        }
+
+        // --- 5. 渲染與適應屏幕優化 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 每幀讓相機緊緊注視著動態變化的目標點
+            camera.lookAt(cameraTarget);
+
+            // 讓大樓有微微的自轉（非滾動時的細微呼吸感，可選）
+            if (model && !gsap.isTweening(camera.position)) {
+                // model.rotation.y += 0.001; 
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 監聽窗口大小調整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+
+    </script>
+</body>
+</html>
