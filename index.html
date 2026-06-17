@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tower Scrollytelling</title>
+    <style>
+        /* 全局樣式重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0b0f19;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* 3D Canvas 固定在背景 */
+        #webgl-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none; /* 允許鼠標穿透，方便調試或與底層交互 */
+        }
+
+        /* Loading 遮罩層 */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #0b0f19;
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 網頁內容包裝層（撐開滾動條） */
+        .scroll-container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+        }
+
+        /* 滾動章節樣式 */
+        section {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 0 10%;
+        }
+        
+        /* 奇偶章節左右交錯排列，增加視覺層次 */
+        section:nth-child(even) {
+            justify-content: flex-end;
+        }
+
+        /* 模組化文字容器（高對比度、極簡、半透明） */
+        .content-card {
+            background: rgba(11, 15, 25, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            max-width: 450px;
+            border-radius: 4px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            opacity: 0; /* 初始隱藏，由 GSAP 控制淡入 */
+            transform: translateY(30px);
+        }
+
+        .content-card h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #3b82f6; /* 科技感藍色主調 */
+            letter-spacing: 1px;
+        }
+
+        .content-card p {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #cccccc;
+            margin-bottom: 15px;
+        }
+
+        .content-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 2px;
+            margin-top: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <p style="margin-top: 20px; color: #6b7280;">正在載入大樓 3D 場景...</p>
+    </div>
+
+    <div id="webgl-container"></div>
+
+    <div class="scroll-container">
+        
+        <section id="section1">
+            <div class="content-card" id="card1">
+                <h2>全景俯瞰</h2>
+                <p>這是大樓的整體外觀設計，採用地標性的幾何線條與現代化玻璃幕牆，展現都市核心的建築美學。</p>
+                </div>
+        </section>
+
+        <section id="section2">
+            <div class="content-card" id="card2">
+                <h2>裙樓與入口</h2>
+                <p>鏡頭轉向大樓南側。寬敞的挑高大堂與開放式公共廣場相連，為市民提供極具包容性的都市共享空間。</p>
+                </div>
+        </section>
+
+        <section id="section3">
+            <div class="content-card" id="card3">
+                <h2>雲端塔尖</h2>
+                <p>隨著頁面繼續下滑，我們來到大樓頂部的空中花園與觀景台。這裡融入了可持續綠色生態設計，將維港景致盡收眼底。</p>
+                </div>
+        </section>
+        
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 初始化 Three.js 場景
+        // ==========================================
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        
+        // 設置霧效，增加場景深度感
+        scene.fog = new THREE.FogExp2(0x0b0f19, 0.015);
+
+        // 相機初始化（角度、寬高比、近裁剪面、遠裁剪面）
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        // 設定初始相機位置 (對應 Section 1)
+        camera.position.set(0, 10, 25); 
+        
+        // 設定相機看向的目標點（大樓中心）
+        const sceneTarget = new THREE.Vector3(0, 5, 0);
+        camera.lookAt(sceneTarget);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制最高2倍屏，優化性能
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        // ==========================================
+        // 2. 燈光配置
+        // ==========================================
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // ==========================================
+        // 3. 載入大樓 GLB 模型
+        // ==========================================
+        let towerModel;
+        const loader = new THREE.GLTFLoader();
+
+        // 【請更換為你的實際模型路徑】
+        // 如果本地測試遇到跨域問題，建議使用 VS Code 的 Live Server 擴充功能運行
+        loader.load('tower.glb', 
+            (gltf) => {
+                towerModel = gltf.scene;
+                
+                // 遍歷模型，開啟陰影並優化材質
+                towerModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(towerModel);
+                
+                // 隱藏 Loading 畫面
+                document.getElementById('loading-screen').style.opacity = 0;
+                setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
+                
+                // 模型加載完成後，初始化滾動動畫
+                initScrollAnimations();
+            },
+            (xhr) => {
+                // 可以可在這裡計算加載進度 (xhr.loaded / xhr.total)
+            },
+            (error) => {
+                console.error('模型載入出錯:', error);
+                // 測試備用：如果模型沒加載成功，放一個方塊代替，確保代碼不報錯
+                const geo = new THREE.BoxGeometry(4, 12, 4);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, wireframe: true });
+                towerModel = new THREE.Mesh(geo, mat);
+                towerModel.position.y = 6;
+                scene.add(towerModel);
+                document.getElementById('loading-screen').style.display = 'none';
+                initScrollAnimations();
+            }
+        );
+
+        // ==========================================
+        // 4. GSAP + ScrollTrigger 核心聯動邏輯
+        // ==========================================
+        gsap.registerPlugin(ScrollTrigger);
+
+        function initScrollAnimations() {
+            
+            // 創建主時間軸，與整個滾動容器綁定
+            const mainTimeline = gsap.timeline({
+                scrollTrigger: {
+                    trigger: ".scroll-container",
+                    start: "top top",
+                    end: "bottom bottom",
+                    scrub: 1.5, // 數值越大，滾動時相機的平滑阻尼感越強
+                }
+            });
+
+            // --- 階段 1: 從 Section 1 滾動到 Section 2 ---
+            // 這裡控制相機從當前位置過渡到新坐標，並同時改變看點
+            mainTimeline.to(camera.position, { x: 15, y: 3, z: 15 }, "step1")
+                        .to(sceneTarget, { x: 0, y: 2, z: 0 }, "step1");
+
+            // --- 階段 2: 從 Section 2 滾動到 Section 3 ---
+            mainTimeline.to(camera.position, { x: -10, y: 18, z: 12 }, "step2")
+                        .to(sceneTarget, { x: 0, y: 12, z: 0 }, "step2");
+
+            // --- 文字卡片的淡入淡出動畫 ---
+            // 第一塊卡片默認淡入
+            gsap.to("#card1", { opacity: 1, y: 0, duration: 1, delay: 0.5 });
+
+            // 第二、三塊卡片根據各自滾動到視窗的位置觸發動畫
+            gsap.to("#card2", {
+                opacity: 1, y: 0,
+                scrollTrigger: { trigger: "#section2", start: "top 60%", end: "top 30%", scrub: true }
+            });
+            gsap.to("#card3", {
+                opacity: 1, y: 0,
+                scrollTrigger: { trigger: "#section3", start: "top 60%", end: "top 30%", scrub: true }
+            });
+        }
+
+        // ==========================================
+        // 5. 渲染循環與自適應
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 每一幀都需要讓相機重新看向更新後的 target 向量
+            camera.lookAt(sceneTarget);
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 監聽窗口大小調整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
